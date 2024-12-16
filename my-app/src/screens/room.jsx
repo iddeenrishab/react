@@ -57,7 +57,7 @@ const RoomPage =()=>{
     },[socket]);
 
     const handleUserJoined = useCallback(({email,id})=>{
-        console.log(`email ${email} joined room`)
+        console.log(`email here refeered is ${email} joined room`)
         setRemoteSocketId(id);
     },[]);
 
