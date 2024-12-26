@@ -1,4 +1,4 @@
-import React,{useEffect, useCallback,useState} from 'react'
+import React,{useEffect, useCallback,useState,useRef} from 'react'
 import { useSocket } from '../context/SocketProvider';
 import ReactPlayer from 'react-player';
 import peer from "../service/peer";
@@ -11,14 +11,38 @@ const RoomPage =()=>{
     const [myStream,setMyStream]= useState();
     const [remoteStream,setRemoteStream]= useState();
     const [remoteSocketId,setRemoteSocketId]= useState(null);
+  const [isStreamSent, setIsStreamSent] = useState(false);
+  const [isRemoteStreamActive, setIsRemoteStreamActive] = useState(false);
+  const [callInitiated, setCallInitiated] = useState(false);
+
+  const [dataChannel, setDataChannel] = useState(null); //this is added
+
+  const canvasRef = useRef(null);
+  const ctxRef = useRef(null);
+  const isDrawing = useRef(false); //this is added
+
+
+
     const handleCallUser = useCallback(async ()=> {
         const stream = await navigator.mediaDevices.getUserMedia({
             audio:true,
             video: true,
         });
         const offer= await peer.getOffer();
+
+        const dataChannel = peer.peer.createDataChannel('canvas');
+        setDataChannel(dataChannel);
+
+        dataChannel.onmessage = (event) => {
+            const { type, x, y } = JSON.parse(event.data);
+            if (type === 'draw') drawOnCanvas(x, y);
+            if (type === 'begin') startDrawingRemote(x, y);
+            if (type === 'end') stopDrawingRemote();
+        };
+
         socket.emit("user:call",{to: remoteSocketId,offer});
         setMyStream(stream);
+        setCallInitiated(true);
     },[remoteSocketId,socket]);
 
 
@@ -32,12 +56,26 @@ const RoomPage =()=>{
         for(const track of myStream.getTracks()){
             peer.peer.addTrack(track,myStream);
         }
+        setIsStreamSent(true);
     },[myStream]);
 
     const handleCallAccepted=useCallback((from,ans)=>{
         peer.setLocalDescription(ans)
         console.log("call accepted ");
         sendStreams();
+
+        peer.peer.ondatachannel = (event) => {
+            const channel = event.channel;
+            setDataChannel(channel);
+
+            channel.onmessage = (event) => {
+                const { type, x, y } = JSON.parse(event.data);
+                if (type === 'draw') drawOnCanvas(x, y);
+                if (type === 'begin') startDrawingRemote(x, y);
+                if (type === 'end') stopDrawingRemote();
+            };
+        };//this is added
+
     },[sendStreams])
 
     const handleNegoNeedFinal=useCallback(async({ans})=>{
@@ -68,6 +106,70 @@ const RoomPage =()=>{
     },[remoteSocketId,socket])
 
 
+    const startDrawing = (e) => {
+        isDrawing.current = true;
+        const { offsetX, offsetY } = e.nativeEvent;
+        ctxRef.current.beginPath();
+        ctxRef.current.moveTo(offsetX, offsetY);
+
+        if (dataChannel) {
+            dataChannel.send(JSON.stringify({ type: 'begin', x: offsetX, y: offsetY }));
+        }
+    };//this is added
+
+
+    const draw = (e) => {
+        if (!isDrawing.current) return;
+        const { offsetX, offsetY } = e.nativeEvent;
+        ctxRef.current.lineTo(offsetX, offsetY);
+        ctxRef.current.stroke();
+
+        if (dataChannel) {
+            dataChannel.send(JSON.stringify({ type: 'draw', x: offsetX, y: offsetY }));
+        }
+    };//this is added
+
+
+
+    const stopDrawing = () => {
+        isDrawing.current = false;
+        ctxRef.current.closePath();
+
+
+        if(dataChannel){
+        if (dataChannel.readyState==='open') {//(.readyState==='open') was added by me
+            dataChannel.send(JSON.stringify({ type: 'end' }));
+        }
+    }
+    };///this is added
+
+    const startDrawingRemote = (x, y) => {
+        ctxRef.current.beginPath();
+        ctxRef.current.moveTo(x, y);
+    };//this is added
+
+    const drawOnCanvas = (x, y) => {
+        ctxRef.current.lineTo(x, y);
+        ctxRef.current.stroke();
+    };//this is added
+
+    const stopDrawingRemote = () => {
+        ctxRef.current.closePath();
+    };//this is added
+
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        canvas.width = 400;
+        canvas.height = 300;
+        const ctx = canvas.getContext('2d');
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctxRef.current = ctx;
+    }, []);
+
+
+
     useEffect(()=>{
         peer.peer.addEventListener("negotiationneeded",handleNegotiationNeeded);
         return ()=>{
@@ -81,6 +183,7 @@ const RoomPage =()=>{
             const remoteStream = ev.streams;
             console.log("GOT TRACKS!!!");
             setRemoteStream(remoteStream[0]);
+            setIsRemoteStreamActive(true); 
         })
     },[]);
 
@@ -108,10 +211,10 @@ const RoomPage =()=>{
             <h1>Room Page</h1>
             <h4>{remoteSocketId ? 'Connected' : "no one in room"}</h4>
             {
-                remoteSocketId && <button onClick={handleCallUser}>CALL</button>
+                !callInitiated &&  remoteSocketId && <button onClick={handleCallUser}>CALL</button>
             }
             {
-                myStream && <button onClick={sendStreams} >Send Stream</button>
+                !isStreamSent && myStream && <button onClick={sendStreams} >Send Stream</button>
             }
             {
                 myStream &&(
@@ -140,6 +243,16 @@ const RoomPage =()=>{
                 </>
                 )
             }
+            <h5>Shared Canvas</h5>
+            <canvas
+                ref={canvasRef}
+                style={{ border: '2px solid blue' }}
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseOut={stopDrawing}
+            />
+
             </div>
     )
 
