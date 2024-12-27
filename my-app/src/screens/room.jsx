@@ -216,44 +216,100 @@ const RoomPage =()=>{
             {
                 !isStreamSent && myStream && <button onClick={sendStreams} >Send Stream</button>
             }
-            {
-                myStream &&(
-                <>
-                <h5>my Stream</h5>
-                <ReactPlayer 
-                playing
-                 muted 
-                 height="150px" 
-                 width="300px" 
-                 url={myStream}/>
-                </>
-                )
-            }
-            {
-                remoteStream &&
-                (
-                <>
-                <h5>Remote Stream</h5>                    
-                <ReactPlayer 
-                playing
-                 muted 
-                 height="150px" 
-                 width="300px" 
-                 url={remoteStream}/>
-                </>
-                )
-            }
-            <h5>Shared Canvas</h5>
+            
+        <div style={{ margin: '0',
+         padding: '0',
+          boxSizing: 'border-box', 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'flex-end', 
+          height:'75vh'}}>
+            
+            <div className="first" 
+            style={{ 
+                width: '100%',
+                height: '40vh',
+                marginbottom: '10vh', /* Starts 10% of the total height from the bottom */
+                display: 'flex',
+                border: '2px solid black' ,}}>
+
+            
+                
+            <div className="left" 
+            style={{ width: '50%', 
+             height: '100%',
+             position:'relative', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'flex-start', 
+            borderRight: '2px solid black', }}> 
+
+
+            <div className="left-top" 
+            style={{ width: '100%', 
+            height: '100%',
+            position:'absolute',
+            top:'0',
+            left:"0",
+            zIndex:"2",}}>
+
+
+            {/* <h5 style={{position: 'relative', top: '-10px', left: '20px',}}>Shared Canvas</h5> */}
             <canvas
                 ref={canvasRef}
-                style={{ border: '2px solid blue' }}
+                // style={{paddingRight:'10px',paddingBottom:'10px',width: 'auto', // Relative width
+                //     height: 'auto', }}
                 onMouseDown={startDrawing}
                 onMouseMove={draw}
                 onMouseUp={stopDrawing}
                 onMouseOut={stopDrawing}
             />
+            </div>
+            <div className="left-bottom" 
+            style={{ width: '100%', 
+            height: '100%',position:'absolute',
+            top:'0',
+            left:"0",
+            zIndex:"1",}}>
+            {
+                myStream &&(
+                <>
+            <h5 style={{position: 'absolute', top: '-10px', left: '20px',}}>My stream</h5>
+                <ReactPlayer 
+                playing
+                 muted width= '100% '
+                height= '100%'
+                 url={myStream}/>
+                </>
+                )
+            }
+            </div>
+            </div>
+            <div className="right"
+            style={{position:"relative",width: '50%',
+            height: '100%'}}>
+            {
+                remoteStream &&
+                (
+                <>
+            <h5 style={{position: 'absolute', top: '-10px', left: '20px',}}>Remote stream</h5>
+                <ReactPlayer 
+                playing
+                 muted 
+                 width= '100%'
+                 height= '100%'  
+                 url={remoteStream}/>
+                </>
+                )
+            }
+            </div>
 
             </div>
+            </div>
+            
+            
+        </div>
     )
 
 }

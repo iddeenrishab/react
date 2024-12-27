@@ -11,7 +11,9 @@ export const useSocket = () =>{
 
 export const SocketProvider = (props)=>{
     
-    const socket = useMemo(()=> io("https://vidcollab-server.onrender.com"),[])
+    // const socket = useMemo(()=> io("https://vidcollab-server.onrender.com"),[])
+    const socket = useMemo(() => io("http://localhost:8000"), []);
+
 
     return(
         <SocketContext.Provider value={socket}>
